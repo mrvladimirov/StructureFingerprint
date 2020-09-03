@@ -1,6 +1,6 @@
 from CIMtools.base import CIMtoolsTransformerMixin
 from numba import njit, prange
-from numpy import append, array, cumprod, ndenumerate, ones, sum as npsum, uint64, where, zeros
+from numpy import append, array, copy, cumprod, ndenumerate, ones, sum as npsum, uint64, where, zeros
 
 
 def convert_to_matrix(molecule):
@@ -9,6 +9,19 @@ def convert_to_matrix(molecule):
     for k, v, b in molecule.bonds():
         adj[k][v] = adj[v][k] = b.order
     return atoms, adj
+
+
+def convert_to_another(molecule):
+    atoms = array([v for k, v in molecule.atoms()], dtype=uint64)
+    bonds = {x: [] for x, _ in molecule.atoms()}
+    for k, v, b in molecule.bonds():
+        bonds[k].append(v)
+        bonds[v].append(k)
+    max_len = len(max(bonds.values(), key=len))
+    matrix = -ones((len(atoms), max_len))
+    for k in bonds:
+        matrix[k - 1][:len(bonds[k])] = array(bonds[k], dtype=uint64)
+    return atoms, matrix
 
 
 def bfs_pure_python(molecule, length):
@@ -32,7 +45,6 @@ def bfs_pure_python(molecule, length):
     return arr
 
 
-@njit
 def bfs_numba(atoms, adj, length):
     threes = array([4] + [3] * (length - 1))
     max_frags = len(atoms) * npsum(cumprod(threes))
@@ -43,86 +55,38 @@ def bfs_numba(atoms, adj, length):
         start, end = index, index + 1
         while True:
             for j in range(start, end):
-                path = arr[j]
-                if where(path == 0)[0].size == 0:
+                path = copy(arr[j])
+                where_flag = False
+                for number in path:
+                    if number == 0:
+                        where_flag = True
+                if where_flag:
                     index += 1
                     break
-                border = where(path != 0)[0][-1]
-                last = path[border]
-                for k in range(1, len(atoms) + 1):
-                    if adj[last][k] and where(path == k)[0].size == 0:
+                border = 0
+                for idx, number in enumerate(path):
+                    if number != 0:
+                        border = idx
+                        break
+                last = int(path[border])
+                for k in adj[last - 1]:
+                    where_flag = False
+                    for number in path:
+                        if number == 0:
+                            where_flag = True
+                    if k != -1 and not where_flag:
                         path[border + 1] = k
                         index += 1
                         arr[index] = path
-            if where(path == 0)[0].size == 0:
+            where_flag = False
+            for number in path:
+                if number == 0:
+                    where_flag = True
+            if where_flag:
                 index += 1
                 break
             start, end = end, index + 1
     return arr
-
-
-@njit(parallel=True)
-def bfs_numba_parallel(atoms, adj, length):
-    threes = array([4] + [3] * (length - 1))
-    max_frags = len(atoms) * npsum(cumprod(threes))
-    divider = max_frags // len(atoms)
-    arr = zeros((max_frags, length), dtype=uint64)
-    for i in prange(1, len(atoms) + 1):
-        index = divider * (i - 1)
-        arr[index][0] = i
-        start, end = index, index + 1
-        while True:
-            for j in range(start, end):
-                path = arr[j]
-                if where(path == 0)[0].size == 0:
-                    index += 1
-                    break
-                border = where(path != 0)[0][-1]
-                last = path[border]
-                for k in range(1, len(atoms) + 1):
-                    if adj[last][k] and where(path == k)[0].size == 0:
-                        path[border + 1] = k
-                        index += 1
-                        arr[index] = path
-            if where(path == 0)[0].size == 0:
-                index += 1
-                break
-            start, end = end, index + 1
-    return arr
-
-
-@njit(parallel=True)
-def dfs(atoms, adj, length):
-    # fixme: nonetype has no len error if it runs with prange and njit's parallel flag
-    max_number = len(atoms) * 4 * 3**(length - 1)
-    fragments = zeros((max_number, len(atoms)), dtype=uint64)
-    index = 0
-    for i, x in ndenumerate(atoms):
-        stack = array([(i[0] + 1,), (0,)], dtype=uint64)
-        path = [uint64(x) for x in range(0)]
-        while stack.size > 0:
-            not_seen = ones(len(atoms) + 1, dtype=uint64)
-            for was in path:
-                not_seen[was] = 0
-            now, depth = stack[0][-1], stack[1][-1]
-            old_stack = stack
-            stack = zeros((len(stack), len(stack[0]) - 1), dtype=uint64)
-            for k in range(len(old_stack)):
-                stack[k] = old_stack[k][:-1]
-            if len(path) > depth:
-                path = path[:depth]
-            path.append(now)
-            if len(path) <= length:
-                print(path)
-                fragments[index][:len(path)] = array(path, dtype=uint64)
-                index = index + 1
-            depth += 1
-            if depth + 1 > length:
-                continue
-            for z, b in ndenumerate(adj[now]):
-                if not_seen[z[0]] and b:
-                    stack = append(stack, array([(z[0],), (depth,)], dtype=uint64), axis=1)
-    return fragments
 
 
 def tuple_hash(v):
