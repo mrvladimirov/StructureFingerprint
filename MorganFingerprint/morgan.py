@@ -1,18 +1,91 @@
 from CIMtools.base import CIMtoolsTransformerMixin
-from numba import njit, prange
-from numpy import append, array, copy, cumprod, ndenumerate, ones, sum as npsum, uint64, where, zeros
+from numba import njit
+from numpy import array, copy, ones, uint64, zeros
 
 
-def convert_to_matrix(molecule):
-    atoms = array([v for k, v in molecule.atoms()], dtype=uint64)
-    adj = zeros((len(atoms) + 1, len(atoms) + 1), dtype=uint64)
-    for k, v, b in molecule.bonds():
-        adj[k][v] = adj[v][k] = b.order
-    return atoms, adj
+class MorganFingerprint(CIMtoolsTransformerMixin):
+    def __init__(self, radius=4, length=1024):
+        self._atoms = {}
+        self._bonds = {}
+        self._radius = radius
+        self._length = length
+
+    def transform(self, x):
+        x = super().transform(x)[0]
+
+        arr = self._fragments(self._bfs(x))
+        tuples = []
+        for lst in arr:
+            new = self.tuple_hash(tuple(lst))
+            tuples.append(new)
+        tuples = sorted(tuples)
+
+        fingerprint = [0] * self._length
+        for one in tuples:
+            fingerprint[one & self._length - 1] = 1
+            fingerprint[one >> 10 & self._length - 1] = 1
+
+        return fingerprint
+
+    def _bfs(self, molecule):
+        self._atoms = {k: int(v) for k, v in molecule.atoms()}
+        self._bonds = {k: {} for k in self._atoms}
+        for k, v, b in molecule.bonds():
+            self._bonds[k][v] = self._bonds[v][k] = b.order
+
+        arr = []
+        for atom in self._atoms:
+            arr.append([atom])
+            start, end = len(arr) - 1, len(arr)
+            while True:
+                for i in range(start, end):
+                    path, last = arr[i], arr[i][-1]
+                    for_adding = [path + [x] for x in self._bonds[last] if x not in path]
+                    arr.extend(for_adding)
+                if len(arr[-1]) == self._radius:
+                    break
+                start, end = end, len(arr)
+        return arr
+
+    def _fragments(self, arr):
+        arr_clear = []
+        for frag in arr:
+            if frag and reversed(frag) not in arr_clear:
+                arr_clear.append(frag)
+
+        arr_out = []
+        for frag in arr:
+            frag_out = [self._atoms[frag[0]]]
+            for first, second in zip(frag, frag[1:]):
+                frag_out.extend([self._bonds[first][second], self._atoms[second]])
+            arr_out.append(frag_out)
+
+        arr_new = []
+        for frag in arr_out:
+            if frag and reversed(frag) not in arr_new:
+                arr_new.append(frag)
+        return arr_new
+
+    def tuple_hash(self, v):
+        """
+        Python 3.8 hash for tuples implemented on python.
+        Working only for nonnested tuples.
+        """
+        acc = 0x27D4EB2F165667C5
+        for el in v:
+            acc += el * 0xC2B2AE3D27D4EB4F
+            acc = (acc << 31) | (acc >> 33)
+            acc *= 0x9E3779B185EBCA87
+
+        acc += len(v) ^ 2870177450013471926  # 0xC2B2AE3D27D4EB4F ^ 3527539
+
+        if acc == 0xFFFFFFFFFFFFFFFF:
+            return 1546275796
+        return acc
 
 
-def convert_to_another(molecule):
-    atoms = array([v for k, v in molecule.atoms()], dtype=uint64)
+def mol_to_hard_adj(molecule):
+    atoms = array([int(v) for k, v in molecule.atoms()], dtype=uint64)
     bonds = {x: [] for x, _ in molecule.atoms()}
     for k, v, b in molecule.bonds():
         bonds[k].append(v)
@@ -24,30 +97,9 @@ def convert_to_another(molecule):
     return atoms, matrix
 
 
-def bfs_pure_python(molecule, length):
-    atoms = {k: v for k, v in molecule.atoms()}
-    bonds = {k: {} for k in atoms}
-    for k, v, b in molecule.bonds():
-        bonds[k][v] = bonds[v][k] = b.order
-
-    arr = []
-    for atom in atoms:
-        arr.append([atom])
-        start, end = len(arr) - 1, len(arr)
-        while True:
-            for i in range(start, end):
-                path, last = arr[i], arr[i][-1]
-                for_adding = [path + [x] for x in bonds[last] if x not in path]
-                arr.extend(for_adding)
-            if len(arr[-1]) == length:
-                break
-            start, end = end, len(arr)
-    return arr
-
-
+@njit
 def bfs_numba(atoms, adj, length):
-    threes = array([4] + [3] * (length - 1))
-    max_frags = len(atoms) * npsum(cumprod(threes))
+    max_frags = len(atoms) * 4 * 3**(length - 1)
     arr = zeros((max_frags, length), dtype=uint64)
     index = 0
     for i in range(1, len(atoms) + 1):
@@ -89,20 +141,4 @@ def bfs_numba(atoms, adj, length):
     return arr
 
 
-def tuple_hash(v):
-    """
-    Python 3.8 hash for tuples implemented on python.
-    Working only for nonnested tuples.
-    """
-    acc = 0x27D4EB2F165667C5
-    for el in v:
-        acc += el * 0xC2B2AE3D27D4EB4F
-        acc = (acc << 31) | (acc >> 33)
-        acc *= 0x9E3779B185EBCA87
-
-    acc += len(v) ^ 2870177450013471926  # 0xC2B2AE3D27D4EB4F ^ 3527539
-
-    if acc == 0xFFFFFFFFFFFFFFFF:
-        return 1546275796
-    return acc
-
+__all__ = ['MorganFingerprint']
