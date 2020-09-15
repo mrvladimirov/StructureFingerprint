@@ -1,9 +1,9 @@
-from CIMtools.base import CIMtoolsTransformerMixin
 from numba import njit
 from numpy import array, copy, ones, uint64, zeros
+from sklearn.base import BaseEstimator, TransformerMixin
 
 
-class MorganFingerprint(CIMtoolsTransformerMixin):
+class MorganFingerprint(TransformerMixin, BaseEstimator):
     def __init__(self, radius=4, length=1024):
         self._atoms = {}
         self._bonds = {}
@@ -11,14 +11,8 @@ class MorganFingerprint(CIMtoolsTransformerMixin):
         self._length = length
 
     def transform(self, x):
-        x = super().transform(x)[0]
-
         arr = self._fragments(self._bfs(x))
-        tuples = []
-        for lst in arr:
-            new = self.tuple_hash(tuple(lst))
-            tuples.append(new)
-        tuples = sorted(tuples)
+        tuples = {self.tuple_hash(tpl) for tpl in arr}
 
         fingerprint = [0] * self._length
         for one in tuples:
@@ -48,23 +42,17 @@ class MorganFingerprint(CIMtoolsTransformerMixin):
         return arr
 
     def _fragments(self, arr):
-        arr_clear = []
-        for frag in arr:
-            if frag and reversed(frag) not in arr_clear:
-                arr_clear.append(frag)
-
-        arr_out = []
+        out = set()
         for frag in arr:
             frag_out = [self._atoms[frag[0]]]
             for first, second in zip(frag, frag[1:]):
                 frag_out.extend([self._bonds[first][second], self._atoms[second]])
-            arr_out.append(frag_out)
-
-        arr_new = []
-        for frag in arr_out:
-            if frag and reversed(frag) not in arr_new:
-                arr_new.append(frag)
-        return arr_new
+            frag_out = tuple(frag_out)
+            if frag_out < frag_out[::-1]:
+                out.add(frag_out)
+            else:
+                out.add(frag_out[::-1])
+        return out
 
     def tuple_hash(self, v):
         """
