@@ -1,3 +1,22 @@
+# -*- coding: utf-8 -*-
+#
+#  Copyright 2020 Aleksandr Sizov <murkyrussian@gmail.com>
+#  Copyright 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  This file is part of MorganFingerprint.
+#
+#  MorganFingerprint is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#  GNU Lesser General Public License for more details.
+#
+#  You should have received a copy of the GNU Lesser General Public License
+#  along with this program; if not, see <https://www.gnu.org/licenses/>.
+#
 from __future__ import annotations
 from CGRtools.algorithms.morgan import tuple_hash
 from collections import defaultdict, deque
@@ -12,6 +31,12 @@ if TYPE_CHECKING:
 
 class MorganFingerprint(TransformerMixin, BaseEstimator):
     def __init__(self, radius: int = 4, length: int = 1024):
+        """
+        Utility tool for making Morgan-like fingerprints
+
+        :param radius: maximum length of fragments
+        :param length: bit string's length
+        """
         self._radius = radius
         self._mask = length - 1
         self._length = length
