@@ -49,9 +49,7 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
         fingerprints = zeros((len(x), self._length))
 
         for idx, lst in enumerate(bits):
-            fingerprint = fingerprints[idx]
-            for bit in lst:
-                fingerprint[bit] = 1
+            fingerprints[idx][lst] = 1
 
         return fingerprints
 
@@ -61,11 +59,16 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
             arr = self._fragments(self._bfs(mol), mol)
             hashes = {tuple_hash(tpl) for tpl in arr}
 
-            active_bits.append([
-                tpl >> (self._log * x) & (self._mask - 1)
-                for x in range(self._number_active_bits)
-                for tpl in hashes
-            ])
+            for tpl in hashes:
+                bit = tpl & self._mask - 1
+                active_bits.append(bit)
+                if self._number_active_bits == 2:
+                    bit = tpl >> self._log & self._mask - 1
+                    active_bits.append(bit)
+                if self._number_active_bits > 2:
+                    for idx in range(2, self._number_active_bits):
+                        bit = tpl >> self._log * idx & self._mask - 1
+                        active_bits.append(bit)
 
         return active_bits
 
