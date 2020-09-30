@@ -49,28 +49,30 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
         fingerprints = zeros((len(x), self._length))
 
         for idx, lst in enumerate(bits):
-            fingerprints[idx][lst] = 1
+            fingerprints[idx, lst] = 1
 
         return fingerprints
 
     def transform_bitset(self, x: Collection) -> list[list[int]]:
-        active_bits = []
+        all_active_bits = []
         for mol in x:
             arr = self._fragments(self._bfs(mol), mol)
             hashes = {tuple_hash(tpl) for tpl in arr}
 
+            active_bits = set()
             for tpl in hashes:
                 bit = tpl & self._mask - 1
-                active_bits.append(bit)
+                active_bits.add(bit)
                 if self._number_active_bits == 2:
                     bit = tpl >> self._log & self._mask - 1
-                    active_bits.append(bit)
-                if self._number_active_bits > 2:
-                    for idx in range(2, self._number_active_bits):
+                    active_bits.add(bit)
+                elif self._number_active_bits > 2:
+                    for idx in range(1, self._number_active_bits):
                         bit = tpl >> self._log * idx & self._mask - 1
-                        active_bits.append(bit)
+                        active_bits.add(bit)
+            all_active_bits.append(list(active_bits))
 
-        return active_bits
+        return all_active_bits
 
     def _bfs(self, molecule: MoleculeContainer) -> list[list[int]]:
         atoms = molecule._atoms
