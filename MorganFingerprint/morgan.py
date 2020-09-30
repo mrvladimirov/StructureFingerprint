@@ -30,31 +30,44 @@ if TYPE_CHECKING:
 
 
 class MorganFingerprint(TransformerMixin, BaseEstimator):
-    def __init__(self, radius: int = 4, length: int = 1024):
+    def __init__(self, radius: int = 4, length: int = 1024, number_active_bits: int = 2):
         """
         Utility tool for making Morgan-like fingerprints
 
         :param radius: maximum length of fragments
         :param length: bit string's length
+        :param number_active_bits: number of active bits for each hashed tuple
         """
         self._radius = radius
         self._mask = length - 1
         self._length = length
         self._log = int(log2(length))
+        self._number_active_bits = number_active_bits
 
     def transform(self, x: Collection):
+        bits = self.transform_bitset(x)
         fingerprints = zeros((len(x), self._length))
 
-        for idx, mol in enumerate(x):
+        for idx, lst in enumerate(bits):
             fingerprint = fingerprints[idx]
+            for bit in lst:
+                fingerprint[bit] = 1
+
+        return fingerprints
+
+    def transform_bitset(self, x: Collection) -> list[list[int]]:
+        active_bits = []
+        for mol in x:
             arr = self._fragments(self._bfs(mol), mol)
             hashes = {tuple_hash(tpl) for tpl in arr}
 
-            for one in hashes:
-                fingerprint[one & self._mask - 1] = 1
-                fingerprint[one >> self._log & self._mask - 1] = 1
+            active_bits.append([
+                tpl >> (self._log * x) & (self._mask - 1)
+                for x in range(self._number_active_bits)
+                for tpl in hashes
+            ])
 
-        return fingerprints
+        return active_bits
 
     def _bfs(self, molecule: MoleculeContainer) -> list[list[int]]:
         atoms = molecule._atoms
@@ -64,9 +77,9 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
         queue = deque(arr)
         while queue:
             now = queue.popleft()
-            if len(now) >= self._radius:
-                continue
             var = [now + [x] for x in bonds[now[-1]] if x not in now]
+            if not var or len(var[0]) >= self._radius - 1:
+                continue
             arr.extend(var)
             queue.extend(var)
         return arr
