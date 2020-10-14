@@ -93,7 +93,7 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
             now = queue.popleft()
             var = [now + [x] for x in bonds[now[-1]] if x not in now]
             arr.extend(var)
-            if not var or len(var[0]) > self._radius:
+            if not var or len(var[0]) >= self._radius:
                 continue
             queue.extend(var)
         return arr
