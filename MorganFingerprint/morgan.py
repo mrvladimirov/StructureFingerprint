@@ -19,11 +19,11 @@
 #
 from __future__ import annotations
 from CGRtools.algorithms.morgan import tuple_hash
-from collections import defaultdict, Counter, deque
+from collections import defaultdict, deque
 from math import log2
 from numpy import zeros
 from sklearn.base import BaseEstimator, TransformerMixin
-from typing import Any, Collection, Union, TYPE_CHECKING
+from typing import Collection, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from CGRtools import MoleculeContainer
@@ -33,14 +33,17 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
     # TODO: add returning of fragments
     # TODO: add morgan fingerprint
     # TODO: return fragments without hashing (dict = frag: count)
-    def __init__(self, radius: int = 4, length: int = 1024, number_active_bits: int = 2, number_bit_pairs: int = 4):
+    def __init__(self, radius: int = 4, length: int = 1024,
+                 number_active_bits: int = 2, number_bit_pairs: int = 4):
         """
         Utility tool for making Morgan-like fingerprints
 
         :param radius: maximum length of fragments
         :param length: bit string's length
         :param number_active_bits: number of active bits for each hashed tuple
-        :param number_bit_pairs: number of activating bit pairs for each fragments
+        :param number_bit_pairs: describe how much repeating fragments we can count in hashable
+               fingerprint (if number of fragment in molecule greater or equal this number, we will be
+               activate only this number of fragments
         """
         self._radius = radius
         self._mask = length - 1
@@ -59,14 +62,12 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
         return fingerprints
 
     def transform_bitset(self, x: Collection) -> list[list[int]]:
-        all_active_bits, new_arr = [], []
+        all_active_bits, new_arr, hashes = [], [], set()
         for mol in x:
             arr = self._fragments(self._bfs(mol), mol)
-            for tpl, count in arr.items():
-                for cnt in range(1, min(count, self._number_bit_pairs)):
-                    new_tpl = tuple([*tpl] + [count])
-                    new_arr.append(new_tpl)
-            hashes = {tuple_hash(tpl) for tpl in new_arr}
+            hashes = {tuple_hash((*tpl, cnt))
+                      for tpl, count in arr.items()
+                      for cnt in range(1, min(count, self._number_bit_pairs) + 1)}
 
             active_bits = set()
             for tpl in hashes:
@@ -98,11 +99,11 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
             queue.extend(var)
         return arr
 
-    def _fragments(self, arr: list[list], molecule: MoleculeContainer) -> Counter:
+    def _fragments(self, arr: list[list], molecule: MoleculeContainer) -> dict[tuple[int, ...], int]:
         atoms = {x: int(a) for x, a in molecule.atoms()}
         bonds = molecule._bonds
         cache = defaultdict(dict)
-        out = Counter()
+        out = defaultdict(int)
         for frag in arr:
             var = [atoms[frag[0]]]
             for x, y in zip(frag, frag[1:]):
@@ -114,9 +115,9 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
             var = tuple(var)
             rev_var = var[::-1]
             if var > rev_var:
-                out.update([var])
+                out[var] += 1
             else:
-                out.update([rev_var])
+                out[rev_var] += 1
         return out
 
 
