@@ -17,13 +17,12 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from __future__ import annotations
 from CGRtools.algorithms.morgan import tuple_hash
 from collections import defaultdict, deque
 from math import log2
 from numpy import zeros
 from sklearn.base import BaseEstimator, TransformerMixin
-from typing import Collection, TYPE_CHECKING
+from typing import Collection, TYPE_CHECKING, List, Dict, Tuple
 
 if TYPE_CHECKING:
     from CGRtools import MoleculeContainer
@@ -61,7 +60,7 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
 
         return fingerprints
 
-    def transform_bitset(self, x: Collection) -> list[list[int]]:
+    def transform_bitset(self, x: Collection) -> List[List[int]]:
         all_active_bits, new_arr, hashes = [], [], set()
         for mol in x:
             arr = self._fragments(self._bfs(mol), mol)
@@ -84,7 +83,7 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
 
         return all_active_bits
 
-    def _bfs(self, molecule: MoleculeContainer) -> list[list[int]]:
+    def _bfs(self, molecule: "MoleculeContainer") -> List[List[int]]:
         atoms = molecule._atoms
         bonds = molecule._bonds
 
@@ -99,7 +98,7 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
             queue.extend(var)
         return arr
 
-    def _fragments(self, arr: list[list], molecule: MoleculeContainer) -> dict[tuple[int, ...], int]:
+    def _fragments(self, arr: List[List], molecule: "MoleculeContainer") -> Dict[Tuple[int, ...], int]:
         atoms = {x: int(a) for x, a in molecule.atoms()}
         bonds = molecule._bonds
         cache = defaultdict(dict)
