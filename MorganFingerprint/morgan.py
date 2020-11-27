@@ -89,10 +89,25 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
 
         arr = [[x] for x in atoms]
         queue = deque(arr)
+        storage = defaultdict(int)
         while queue:
             now = queue.popleft()
             var = [now + [x] for x in bonds[now[-1]] if x not in now]
-            arr.extend(var)
+
+            # temporary solution about bug with doubling numbers of fragments
+            for frag in var:
+                canon_frag = tuple(frag)
+                rev_canon_frag = canon_frag[::-1]
+                if canon_frag > rev_canon_frag and not storage[canon_frag]:
+                    storage[canon_frag] += 1
+                    arr.append(frag)
+                elif canon_frag < rev_canon_frag and not storage[rev_canon_frag]:
+                    storage[rev_canon_frag] += 1
+                    arr.append(frag)
+                elif canon_frag == rev_canon_frag:
+                    storage[canon_frag] += 1
+                    arr.append(frag)
+
             if not var or len(var[0]) >= self._radius:
                 continue
             queue.extend(var)
@@ -103,6 +118,7 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
         bonds = molecule._bonds
         cache = defaultdict(dict)
         out = defaultdict(int)
+
         for frag in arr:
             var = [atoms[frag[0]]]
             for x, y in zip(frag, frag[1:]):
