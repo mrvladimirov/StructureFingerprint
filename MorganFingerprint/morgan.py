@@ -22,7 +22,7 @@ from collections import defaultdict, deque
 from math import log2
 from numpy import zeros
 from sklearn.base import BaseEstimator, TransformerMixin
-from typing import Collection, TYPE_CHECKING, List, Dict, Tuple
+from typing import Collection, TYPE_CHECKING, List, Dict, Tuple, Set
 
 if TYPE_CHECKING:
     from CGRtools import MoleculeContainer
@@ -32,19 +32,21 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
     # TODO: add returning of fragments
     # TODO: add morgan fingerprint
     # TODO: return fragments without hashing (dict = frag: count)
-    def __init__(self, radius: int = 4, length: int = 1024,
+    def __init__(self, min_radius: int = 1, max_radius: int = 4, length: int = 1024,
                  number_active_bits: int = 2, number_bit_pairs: int = 4):
         """
         Utility tool for making Morgan-like fingerprints
 
-        :param radius: maximum length of fragments
+        :param min_radius: minimal length of fragments
+        :param max_radius: maximum length of fragments
         :param length: bit string's length
         :param number_active_bits: number of active bits for each hashed tuple
         :param number_bit_pairs: describe how much repeating fragments we can count in hashable
                fingerprint (if number of fragment in molecule greater or equal this number, we will be
                activate only this number of fragments
         """
-        self._radius = radius
+        self._min_radius = min_radius
+        self._max_radius = max_radius
         self._mask = length - 1
         self._length = length
         self._log = int(log2(length))
@@ -83,37 +85,27 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
 
         return all_active_bits
 
-    def _bfs(self, molecule: "MoleculeContainer") -> List[List[int]]:
+    def _bfs(self, molecule: "MoleculeContainer") -> Set[Tuple[int, ]]:
         atoms = molecule._atoms
         bonds = molecule._bonds
 
-        arr = [[x] for x in atoms]
-        queue = deque(arr)
-        storage = defaultdict(int)
+        arr = set()
+        queue = deque([x] for x in atoms)
         while queue:
             now = queue.popleft()
             var = [now + [x] for x in bonds[now[-1]] if x not in now]
 
-            # temporary solution about bug with doubling numbers of fragments
             for frag in var:
-                canon_frag = tuple(frag)
-                rev_canon_frag = canon_frag[::-1]
-                if canon_frag > rev_canon_frag and not storage[canon_frag]:
-                    storage[canon_frag] += 1
-                    arr.append(frag)
-                elif canon_frag < rev_canon_frag and not storage[rev_canon_frag]:
-                    storage[rev_canon_frag] += 1
-                    arr.append(frag)
-                elif canon_frag == rev_canon_frag:
-                    storage[canon_frag] += 1
-                    arr.append(frag)
-
-            if not var or len(var[0]) >= self._radius:
+                if len(frag) < self._min_radius:
+                    continue
+                canon_frag = tuple(frag) if frag > frag[::-1] else tuple(frag[::-1])
+                arr.add(canon_frag)
+            if not var or len(var[0]) >= self._max_radius:
                 continue
             queue.extend(var)
         return arr
 
-    def _fragments(self, arr: List[List], molecule: "MoleculeContainer") -> Dict[Tuple[int, ...], int]:
+    def _fragments(self, arr: Set[Tuple], molecule: "MoleculeContainer") -> Dict[Tuple[int, ...], int]:
         atoms = {x: int(a) for x, a in molecule.atoms()}
         bonds = molecule._bonds
         cache = defaultdict(dict)
