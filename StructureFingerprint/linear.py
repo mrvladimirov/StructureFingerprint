@@ -17,29 +17,42 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from CGRtools.algorithms.morgan import tuple_hash
 from collections import defaultdict, deque
+from importlib.util import find_spec
 from math import log2
 from numpy import zeros
-from sklearn.base import BaseEstimator, TransformerMixin
-from typing import Collection, TYPE_CHECKING, List, Dict, Tuple, Set
+from pkg_resources import get_distribution
+from typing import Collection, TYPE_CHECKING, List, Dict, Tuple, Set, Deque
+
+
+cgr_version = get_distribution('CGRtools').parsed_version
+if cgr_version.major == 4 and cgr_version.minor == 0:  # 4.0 compatibility
+    from CGRtools.algorithms.morgan import tuple_hash
+else:
+    from CGRtools._functions import tuple_hash
+
+if find_spec('sklearn'):  # use sklearn classes if available
+    from sklearn.base import BaseEstimator, TransformerMixin
+else:
+    class BaseEstimator:
+        ...
+
+    class TransformerMixin:
+        ...
 
 if TYPE_CHECKING:
     from CGRtools import MoleculeContainer
 
 
-class MorganFingerprint(TransformerMixin, BaseEstimator):
-    # TODO: add returning of fragments
-    # TODO: add morgan fingerprint
-    # TODO: return fragments without hashing (dict = frag: count)
+class LinearFingerprint(TransformerMixin, BaseEstimator):
     def __init__(self, min_radius: int = 1, max_radius: int = 4, length: int = 1024,
                  number_active_bits: int = 2, number_bit_pairs: int = 4):
         """
-        Utility tool for making Morgan-like fingerprints
+        Linear fragments fingerprints
 
         :param min_radius: minimal length of fragments
         :param max_radius: maximum length of fragments
-        :param length: bit string's length
+        :param length: bit string's length. Should be power of 2
         :param number_active_bits: number of active bits for each hashed tuple
         :param number_bit_pairs: describe how much repeating fragments we can count in hashable
                fingerprint (if number of fragment in molecule greater or equal this number, we will be
@@ -58,66 +71,73 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
         fingerprints = zeros((len(x), self._length))
 
         for idx, lst in enumerate(bits):
-            fingerprints[idx, lst] = 1
-
+            fingerprints[idx, list(lst)] = 1
         return fingerprints
 
-    def transform_bitset(self, x: Collection) -> List[List[int]]:
-        all_active_bits, new_arr, hashes = [], [], set()
+    def transform_bitset(self, x: Collection) -> List[Set[int]]:
+        number_bit_pairs = self._number_bit_pairs
+        number_active_bits = self._number_active_bits
+        mask = self._mask
+        log = self._log
+
+        all_active_bits = []
         for mol in x:
-            arr = self._fragments(self._bfs(mol), mol)
+            arr = self._fragments(mol)
             hashes = {tuple_hash((*tpl, cnt))
                       for tpl, count in arr.items()
-                      for cnt in range(1, min(count, self._number_bit_pairs) + 1)}
+                      for cnt in range(min(count, number_bit_pairs))}
 
             active_bits = set()
             for tpl in hashes:
-                bit = tpl & self._mask - 1
-                active_bits.add(bit)
-                if self._number_active_bits == 2:
-                    bit = tpl >> self._log & self._mask - 1
-                    active_bits.add(bit)
-                elif self._number_active_bits > 2:
-                    for idx in range(1, self._number_active_bits):
-                        bit = tpl >> self._log * idx & self._mask - 1
-                        active_bits.add(bit)
-            all_active_bits.append(list(active_bits))
+                active_bits.add(tpl & mask)
+                if number_active_bits == 2:
+                    active_bits.add(tpl >> log & mask)
+                elif number_active_bits > 2:
+                    for _ in range(1, number_active_bits):
+                        tpl >>= log  # shift
+                        active_bits.add(tpl & mask)
 
+            all_active_bits.append(active_bits)
         return all_active_bits
 
-    def _bfs(self, molecule: "MoleculeContainer") -> Set[Tuple[int, ]]:
+    def _chains(self, molecule: 'MoleculeContainer') -> Set[Tuple[int, ...]]:
+        queue: Deque[Tuple[int, ...]]  # typing
+        min_radius = self._min_radius
+        max_radius = self._max_radius
         atoms = molecule._atoms
         bonds = molecule._bonds
 
-        arr = set()
-        queue = deque([x] for x in atoms)
+        if min_radius == 1:
+            arr = {(x,) for x in atoms}
+            if max_radius == 1:  # special case
+                queue = None
+            else:
+                queue = deque(arr)
+        else:
+            arr = set()
+            queue = deque((x,) for x in atoms)
+
         while queue:
             now = queue.popleft()
-            var = [now + [x] for x in bonds[now[-1]] if x not in now]
-
-            for frag in var:
-                if len(frag) < self._min_radius:
-                    continue
-                canon_frag = tuple(frag) if frag > frag[::-1] else tuple(frag[::-1])
-                arr.add(canon_frag)
-            if not var or len(var[0]) >= self._max_radius:
-                continue
-            queue.extend(var)
+            var = [now + (x,) for x in bonds[now[-1]] if x not in now]
+            if var:
+                if len(var[0]) < max_radius:
+                    queue.extend(var)
+                if len(var[0]) >= min_radius:
+                    for frag in var:
+                        rev = frag[::-1]
+                        arr.add(frag if frag > rev else rev)
         return arr
 
-    def _fragments(self, arr: Set[Tuple], molecule: "MoleculeContainer") -> Dict[Tuple[int, ...], int]:
+    def _fragments(self, molecule: 'MoleculeContainer') -> Dict[Tuple[int, ...], int]:
         atoms = {x: int(a) for x, a in molecule.atoms()}
         bonds = molecule._bonds
-        cache = defaultdict(dict)
         out = defaultdict(int)
 
-        for frag in arr:
+        for frag in self._chains(molecule):
             var = [atoms[frag[0]]]
             for x, y in zip(frag, frag[1:]):
-                b = cache[x].get(y)
-                if not b:
-                    b = cache[x][y] = cache[y][x] = int(bonds[x][y])
-                var.append(b)
+                var.append(int(bonds[x][y]))
                 var.append(atoms[y])
             var = tuple(var)
             rev_var = var[::-1]
@@ -125,7 +145,7 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
                 out[var] += 1
             else:
                 out[rev_var] += 1
-        return out
+        return dict(out)
 
 
-__all__ = ['MorganFingerprint']
+__all__ = ['LinearFingerprint']

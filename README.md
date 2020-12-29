@@ -1,1 +1,4 @@
-Utility tool for making Morgan-like fingerprints
+Molecules and CGR's fingerprints.
+
+
+Currently only linear fragment fingerprints implemented.
