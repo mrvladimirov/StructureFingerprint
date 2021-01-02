@@ -74,7 +74,7 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
             fingerprints[idx, list(lst)] = 1
         return fingerprints
 
-    def transform_bitset(self, x: Collection) -> List[Set[int]]:
+    def transform_bitset(self, x: Collection) -> List[List[int]]:
         number_bit_pairs = self._number_bit_pairs
         number_active_bits = self._number_active_bits
         mask = self._mask
@@ -97,7 +97,7 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
                         tpl >>= log  # shift
                         active_bits.add(tpl & mask)
 
-            all_active_bits.append(active_bits)
+            all_active_bits.append(list(active_bits))
         return all_active_bits
 
     def _chains(self, molecule: 'MoleculeContainer') -> Set[Tuple[int, ...]]:

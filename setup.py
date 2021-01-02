@@ -25,7 +25,7 @@ version = '1.21'
 
 
 setup(
-    name='MorganFingerprint',
+    name='StructureFingerprint',
     version=version,
     packages=find_packages(),
     url='https://github.com/dcloudf/MorganFingerprint',
