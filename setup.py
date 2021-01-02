@@ -31,7 +31,7 @@ setup(
     url='https://github.com/dcloudf/MorganFingerprint',
     license='LGPLv3',
     python_requires='>=3.6.0',
-    install_requires=['CGRtools[mrv]>=4.0,<4.2', 'numpy>=1.18'],
+    install_requires=['CGRtools>=4.0,<4.2', 'numpy>=1.18'],
     extras_require={},
     long_description=(Path(__file__).parent / 'README.md').open().read(),
     classifiers=['Environment :: Plugins',
