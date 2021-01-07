@@ -58,27 +58,25 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
                fingerprint (if number of fragment in molecule greater or equal this number, we will be
                activate only this number of fragments
         """
-        self._min_radius = min_radius
-        self._max_radius = max_radius
-        self._mask = length - 1
-        self._length = length
-        self._log = int(log2(length))
-        self._number_active_bits = number_active_bits
-        self._number_bit_pairs = number_bit_pairs
+        self.min_radius = min_radius
+        self.max_radius = max_radius
+        self.length = length
+        self.number_active_bits = number_active_bits
+        self.number_bit_pairs = number_bit_pairs
 
     def transform(self, x: Collection[Union['MoleculeContainer', 'CGRContainer']]):
         bits = self.transform_bitset(x)
-        fingerprints = zeros((len(x), self._length))
+        fingerprints = zeros((len(x), self.length))
 
         for idx, lst in enumerate(bits):
             fingerprints[idx, list(lst)] = 1
         return fingerprints
 
     def transform_bitset(self, x: Collection[Union['MoleculeContainer', 'CGRContainer']]) -> List[List[int]]:
-        number_bit_pairs = self._number_bit_pairs
-        number_active_bits = self._number_active_bits
-        mask = self._mask
-        log = self._log
+        number_bit_pairs = self.number_bit_pairs
+        number_active_bits = self.number_active_bits
+        mask = self.length - 1
+        log = int(log2(self.length))
 
         all_active_bits = []
         for mol in x:
@@ -102,8 +100,8 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
 
     def _chains(self, molecule: Union['MoleculeContainer', 'CGRContainer']) -> Set[Tuple[int, ...]]:
         queue: Deque[Tuple[int, ...]]  # typing
-        min_radius = self._min_radius
-        max_radius = self._max_radius
+        min_radius = self.min_radius
+        max_radius = self.max_radius
         atoms = molecule._atoms
         bonds = molecule._bonds
 
