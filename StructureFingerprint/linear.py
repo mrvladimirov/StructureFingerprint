@@ -25,8 +25,8 @@ from pkg_resources import get_distribution
 from typing import Collection, TYPE_CHECKING, List, Dict, Tuple, Set, Deque
 
 
-cgr_version = get_distribution('CGRtools').parsed_version
-if cgr_version.major == 4 and cgr_version.minor == 0:  # 4.0 compatibility
+cgr_version = get_distribution('CGRtools').version
+if cgr_version.startswith('4.0.'):  # 4.0 compatibility
     from CGRtools.algorithms.morgan import tuple_hash
 else:
     from CGRtools._functions import tuple_hash
