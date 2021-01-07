@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2020 Aleksandr Sizov <murkyrussian@gmail.com>
-#  Copyright 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
-#  This file is part of MorganFingerprint.
+#  Copyright 2020, 2021 Aleksandr Sizov <murkyrussian@gmail.com>
+#  Copyright 2020, 2021 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  This file is part of StructureFingerprint.
 #
 #  MorganFingerprint is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,7 @@ from importlib.util import find_spec
 from math import log2
 from numpy import zeros
 from pkg_resources import get_distribution
-from typing import Collection, TYPE_CHECKING, List, Dict, Tuple, Set, Deque
+from typing import Collection, TYPE_CHECKING, List, Dict, Tuple, Set, Deque, Union
 
 
 cgr_version = get_distribution('CGRtools').version
@@ -41,7 +41,7 @@ else:
         ...
 
 if TYPE_CHECKING:
-    from CGRtools import MoleculeContainer
+    from CGRtools import MoleculeContainer, CGRContainer
 
 
 class LinearFingerprint(TransformerMixin, BaseEstimator):
@@ -66,7 +66,7 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
         self._number_active_bits = number_active_bits
         self._number_bit_pairs = number_bit_pairs
 
-    def transform(self, x: Collection):
+    def transform(self, x: Collection[Union['MoleculeContainer', 'CGRContainer']]):
         bits = self.transform_bitset(x)
         fingerprints = zeros((len(x), self._length))
 
@@ -74,7 +74,7 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
             fingerprints[idx, list(lst)] = 1
         return fingerprints
 
-    def transform_bitset(self, x: Collection) -> List[List[int]]:
+    def transform_bitset(self, x: Collection[Union['MoleculeContainer', 'CGRContainer']]) -> List[List[int]]:
         number_bit_pairs = self._number_bit_pairs
         number_active_bits = self._number_active_bits
         mask = self._mask
@@ -100,7 +100,7 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
             all_active_bits.append(list(active_bits))
         return all_active_bits
 
-    def _chains(self, molecule: 'MoleculeContainer') -> Set[Tuple[int, ...]]:
+    def _chains(self, molecule: Union['MoleculeContainer', 'CGRContainer']) -> Set[Tuple[int, ...]]:
         queue: Deque[Tuple[int, ...]]  # typing
         min_radius = self._min_radius
         max_radius = self._max_radius
@@ -129,7 +129,7 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
                         arr.add(frag if frag > rev else rev)
         return arr
 
-    def _fragments(self, molecule: 'MoleculeContainer') -> Dict[Tuple[int, ...], int]:
+    def _fragments(self, molecule: Union['MoleculeContainer', 'CGRContainer']) -> Dict[Tuple[int, ...], int]:
         atoms = {x: int(a) for x, a in molecule.atoms()}
         bonds = molecule._bonds
         out = defaultdict(int)
