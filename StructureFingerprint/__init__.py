@@ -18,3 +18,4 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from .linear import *
+from .morgan import *
