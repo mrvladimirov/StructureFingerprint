@@ -2,7 +2,7 @@
 #
 #  Copyright 2020 Aleksandr Sizov <murkyrussian@gmail.com>
 #  Copyright 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
-#  This file is part of MorganFingerprint.
+#  This file is part of StructureFingerprint.
 #
 #  MorganFingerprint is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU Lesser General Public License as published by
