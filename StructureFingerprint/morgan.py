@@ -23,6 +23,8 @@ from numpy import zeros
 from pkg_resources import get_distribution
 from typing import Collection, TYPE_CHECKING, List, Set, Union
 
+from CGRtools import MoleculeContainer, CGRContainer
+
 
 cgr_version = get_distribution('CGRtools').version
 if cgr_version.startswith('4.0.'):  # 4.0 compatibility
@@ -38,9 +40,6 @@ else:
 
     class TransformerMixin:
         ...
-
-if TYPE_CHECKING:
-    from CGRtools import MoleculeContainer, CGRContainer
 
 
 class MorganFingerprint(TransformerMixin, BaseEstimator):
