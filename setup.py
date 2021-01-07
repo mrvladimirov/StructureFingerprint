@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2020 Aleksandr Sizov <murkyrussian@gmail.com>
-#  Copyright 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
-#  This file is part of MorganFingerprint.
+#  Copyright 2020, 2021 Aleksandr Sizov <murkyrussian@gmail.com>
+#  Copyright 2020, 2021 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  This file is part of StructureFingerprint.
 #
 #  MorganFingerprint is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +21,7 @@ from pathlib import Path
 from setuptools import setup, find_packages
 
 
-version = '1.21'
+version = '1.22'
 
 
 setup(
@@ -31,7 +31,7 @@ setup(
     url='https://github.com/dcloudf/MorganFingerprint',
     license='LGPLv3',
     python_requires='>=3.6.0',
-    install_requires=['CGRtools>=4.0,<4.2', 'numpy>=1.18'],
+    install_requires=['CGRtools>=4.0.41,<4.2', 'numpy>=1.18'],
     extras_require={},
     long_description=(Path(__file__).parent / 'README.md').open().read(),
     classifiers=['Environment :: Plugins',
