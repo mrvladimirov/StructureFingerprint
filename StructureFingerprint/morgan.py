@@ -74,10 +74,9 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
         log = self._log
 
         all_active_bits = []
-
         for mol in x:
-            active_bits, hashes = set(), self._morgan(mol)
-            for tpl in hashes:
+            active_bits = set()
+            for tpl in self._morgan(mol):
                 active_bits.add(tpl & mask)
                 if number_active_bits == 2:
                     active_bits.add(tpl >> log & mask)
@@ -86,36 +85,34 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
                         tpl >>= log
                         active_bits.add(tpl & mask)
             all_active_bits.append(list(active_bits))
-
         return all_active_bits
 
     def _morgan(self, molecule: Union['MoleculeContainer', 'CGRContainer']) -> Set[int]:
         min_radius = self._min_radius
-        bonds = molecule._bonds
 
         if isinstance(molecule, MoleculeContainer):
             identifiers = {idx: tuple_hash((atom.atomic_number, atom.isotope or 0, atom.charge, atom.is_radical,
                                             atom.implicit_hydrogens))
                            for idx, atom in molecule.atoms()}
-        else:
+        elif isinstance(molecule, CGRContainer):
             identifiers = {idx: tuple_hash((atom.atomic_number, atom.isotope or 0, atom.charge, atom.is_radical,
                                             atom.p_charge, atom.p_is_radical))
                            for idx, atom in molecule.atoms()}
-
-        if self._min_radius == 1:
-            arr = set(identifiers.values())
         else:
-            arr = set()
+            raise TypeError('MoleculeContainer or CGRContainer expected')
 
+        bonds = molecule._bonds
+        arr = set()
         for step in range(1, self._max_radius + 1):
             if step >= min_radius:
                 arr.update(identifiers.values())
-            identifiers = {idx: tuple_hash((tpl, *collapse(sorted((x[::-1] for x in bonds[idx].items()),
-                                                                  key=lambda x: int(x[1]),
-                                                                  reverse=True))))
+            identifiers = {idx: tuple_hash((tpl, *(x for x in
+                                                   sorted((int(b), identifiers[ngb]) for ngb, b in bonds[idx].items())
+                                                   for x in x)))
                            for idx, tpl in identifiers.items()}
-        # add last ring
-        arr.update(identifiers.values())
+
+        if self._max_radius > 1:  # add last ring
+            arr.update(identifiers.values())
         return arr
 
 
