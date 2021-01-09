@@ -57,6 +57,9 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
         self.length = length
         self.number_active_bits = number_active_bits
 
+    def fit(self, x, y=None):
+        return self
+
     def transform(self, x: Collection[Union['MoleculeContainer', 'CGRContainer']]):
         bits = self.transform_bitset(x)
         fingerprints = zeros((len(x), self.length))
