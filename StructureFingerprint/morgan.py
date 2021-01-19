@@ -17,13 +17,12 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
+from CGRtools import MoleculeContainer, CGRContainer
 from importlib.util import find_spec
 from math import log2
 from numpy import zeros
 from pkg_resources import get_distribution
-from typing import Collection, TYPE_CHECKING, List, Set, Union
-
-from CGRtools import MoleculeContainer, CGRContainer
+from typing import Collection, List, Set, Union
 
 
 cgr_version = get_distribution('CGRtools').version
