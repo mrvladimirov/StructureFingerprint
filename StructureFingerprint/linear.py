@@ -17,12 +17,13 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
+from CGRtools import MoleculeContainer, CGRContainer
 from collections import defaultdict, deque
 from importlib.util import find_spec
 from math import log2
 from numpy import zeros
 from pkg_resources import get_distribution
-from typing import Collection, TYPE_CHECKING, List, Dict, Tuple, Set, Deque, Union
+from typing import Collection, List, Dict, Tuple, Set, Deque, Union
 
 
 cgr_version = get_distribution('CGRtools').version
@@ -40,15 +41,18 @@ else:
     class TransformerMixin:
         ...
 
-if TYPE_CHECKING:
-    from CGRtools import MoleculeContainer, CGRContainer
-
 
 class LinearFingerprint(TransformerMixin, BaseEstimator):
     def __init__(self, min_radius: int = 1, max_radius: int = 4, length: int = 1024,
                  number_active_bits: int = 2, number_bit_pairs: int = 4):
         """
-        Linear fragments fingerprints
+        Linear fragments fingerprints.
+        Transform molecule or CGR structures into fingerprints based on linear fragments descriptors.
+        Also count of fragments takes into account by activating multiple bits, but less or equal to `number_bit_pairs`.
+
+        For example `CC` fragment found 4 times and `number_bit_pairs` is set to 3.
+        In this case will be activated 3 bits: for count 1, for count 2 and for count 3.
+        This gives intersection in bits with another structure with only 2 `CC` fragments.
 
         :param min_radius: minimal length of fragments
         :param max_radius: maximum length of fragments
@@ -67,7 +71,13 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
     def fit(self, x, y=None):
         return self
 
-    def transform(self, x: Collection[Union['MoleculeContainer', 'CGRContainer']]):
+    def transform(self, x: Collection[Union[MoleculeContainer, CGRContainer]]):
+        """
+        Transform structures into array of binary features.
+
+        :param x: CGRtools MoleculeContainer or CGRContainer
+        :return: array(n_samples, n_features)
+        """
         bits = self.transform_bitset(x)
         fingerprints = zeros((len(x), self.length))
 
@@ -75,19 +85,19 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
             fingerprints[idx, list(lst)] = 1
         return fingerprints
 
-    def transform_bitset(self, x: Collection[Union['MoleculeContainer', 'CGRContainer']]) -> List[List[int]]:
-        number_bit_pairs = self.number_bit_pairs
+    def transform_bitset(self, x: Collection[Union[MoleculeContainer, CGRContainer]]) -> List[List[int]]:
+        """
+        Transform structures into list of indexes of True-valued features.
+
+        :param x: CGRtools MoleculeContainer or CGRContainer
+        :return: list of list of indexes
+        """
         number_active_bits = self.number_active_bits
         mask = self.length - 1
         log = int(log2(self.length))
 
         all_active_bits = []
-        for mol in x:
-            arr = self._fragments(mol)
-            hashes = {tuple_hash((*tpl, cnt))
-                      for tpl, count in arr.items()
-                      for cnt in range(min(count, number_bit_pairs))}
-
+        for hashes in self.transform_hashes(x):
             active_bits = set()
             for tpl in hashes:
                 active_bits.add(tpl & mask)
@@ -101,7 +111,21 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
             all_active_bits.append(list(active_bits))
         return all_active_bits
 
-    def _chains(self, molecule: Union['MoleculeContainer', 'CGRContainer']) -> Set[Tuple[int, ...]]:
+    def transform_hashes(self, x: Collection[Union[MoleculeContainer, CGRContainer]]) -> List[List[int]]:
+        """
+        Transform structures into list of integer hashes of fragments with count information.
+
+        :param x: CGRtools MoleculeContainer or CGRContainer
+        :return: list of list of integer hashes
+        """
+        number_bit_pairs = self.number_bit_pairs
+        hashes = []
+        for mol in x:
+            hashes.append(list({tuple_hash((*tpl, cnt)) for tpl, count in self._fragments(mol).items()
+                                for cnt in range(min(count, number_bit_pairs))}))
+        return hashes
+
+    def _chains(self, molecule: Union[MoleculeContainer, CGRContainer]) -> Set[Tuple[int, ...]]:
         queue: Deque[Tuple[int, ...]]  # typing
         min_radius = self.min_radius
         max_radius = self.max_radius
@@ -130,7 +154,10 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
                         arr.add(frag if frag > rev else rev)
         return arr
 
-    def _fragments(self, molecule: Union['MoleculeContainer', 'CGRContainer']) -> Dict[Tuple[int, ...], int]:
+    def _fragments(self, molecule: Union[MoleculeContainer, CGRContainer]) -> Dict[Tuple[int, ...], int]:
+        if not isinstance(molecule, (MoleculeContainer, CGRContainer)):
+            raise TypeError('MoleculeContainer or CGRContainer expected')
+
         atoms = {x: int(a) for x, a in molecule.atoms()}
         bonds = molecule._bonds
         out = defaultdict(int)
