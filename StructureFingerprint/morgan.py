@@ -44,7 +44,7 @@ else:
 class MorganFingerprint(TransformerMixin, BaseEstimator):
     def __init__(self, min_radius: int = 1, max_radius: int = 4, length: int = 1024, number_active_bits: int = 2):
         """
-        Morgan fingerprints
+        Morgan fingerprints. Similar to RDkit implementation.
 
         :param min_radius: minimal radius of EC
         :param max_radius: maximum radius of EC
@@ -60,6 +60,12 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
         return self
 
     def transform(self, x: Collection[Union['MoleculeContainer', 'CGRContainer']]):
+        """
+        Transform structures into array of binary features.
+
+        :param x: CGRtools MoleculeContainer or CGRContainer
+        :return: array(n_samples, n_features)
+        """
         bits = self.transform_bitset(x)
         fingerprints = zeros((len(x), self.length))
 
@@ -68,6 +74,12 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
         return fingerprints
 
     def transform_bitset(self, x: Collection[Union['MoleculeContainer', 'CGRContainer']]) -> List[List[int]]:
+        """
+        Transform structures into list of indexes of True-valued features.
+
+        :param x: CGRtools MoleculeContainer or CGRContainer
+        :return: list of list of indexes
+        """
         number_active_bits = self.number_active_bits
         mask = self.length - 1
         log = int(log2(self.length))
@@ -86,7 +98,16 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
             all_active_bits.append(list(active_bits))
         return all_active_bits
 
-    def _morgan(self, molecule: Union['MoleculeContainer', 'CGRContainer']) -> Set[int]:
+    def transform_hashes(self, x: Collection[Union['MoleculeContainer', 'CGRContainer']]) -> List[List[int]]:
+        """
+        Transform structures into list of integer hashes of atoms with EC.
+
+        :param x: CGRtools MoleculeContainer or CGRContainer
+        :return: list of list of integer hashes
+        """
+        return [self._morgan(mol) for mol in x]
+
+    def _morgan(self, molecule: Union['MoleculeContainer', 'CGRContainer']) -> List[int]:
         min_radius = self.min_radius
 
         if isinstance(molecule, MoleculeContainer):
@@ -112,7 +133,7 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
 
         if self.max_radius > 1:  # add last ring
             arr.update(identifiers.values())
-        return arr
+        return list(arr)
 
 
 __all__ = ['MorganFingerprint']
