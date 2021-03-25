@@ -22,7 +22,7 @@ from importlib.util import find_spec
 from math import log2
 from numpy import zeros
 from pkg_resources import get_distribution
-from typing import Collection, List, Set, Union
+from typing import Collection, List, Union
 
 
 cgr_version = get_distribution('CGRtools').version
@@ -59,7 +59,7 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
     def fit(self, x, y=None):
         return self
 
-    def transform(self, x: Collection[Union['MoleculeContainer', 'CGRContainer']]):
+    def transform(self, x: Collection[Union[MoleculeContainer, CGRContainer]]):
         """
         Transform structures into array of binary features.
 
@@ -73,7 +73,7 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
             fingerprints[idx, list(lst)] = 1
         return fingerprints
 
-    def transform_bitset(self, x: Collection[Union['MoleculeContainer', 'CGRContainer']]) -> List[List[int]]:
+    def transform_bitset(self, x: Collection[Union[MoleculeContainer, CGRContainer]]) -> List[List[int]]:
         """
         Transform structures into list of indexes of True-valued features.
 
@@ -98,7 +98,7 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
             all_active_bits.append(list(active_bits))
         return all_active_bits
 
-    def transform_hashes(self, x: Collection[Union['MoleculeContainer', 'CGRContainer']]) -> List[List[int]]:
+    def transform_hashes(self, x: Collection[Union[MoleculeContainer, CGRContainer]]) -> List[List[int]]:
         """
         Transform structures into list of integer hashes of atoms with EC.
 
@@ -107,7 +107,7 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
         """
         return [self._morgan(mol) for mol in x]
 
-    def _morgan(self, molecule: Union['MoleculeContainer', 'CGRContainer']) -> List[int]:
+    def _morgan(self, molecule: Union[MoleculeContainer, CGRContainer]) -> List[int]:
         min_radius = self.min_radius
 
         if isinstance(molecule, MoleculeContainer):
