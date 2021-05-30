@@ -21,7 +21,7 @@ from CGRtools import MoleculeContainer, CGRContainer
 from collections import defaultdict, deque
 from importlib.util import find_spec
 from math import log2
-from numpy import zeros
+from numpy import zeros, uint8
 from pkg_resources import get_distribution
 from typing import Collection, List, Dict, Tuple, Set, Deque, Union
 
@@ -79,7 +79,7 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
         :return: array(n_samples, n_features)
         """
         bits = self.transform_bitset(x)
-        fingerprints = zeros((len(x), self.length))
+        fingerprints = zeros((len(x), self.length), dtype=uint8)
 
         for idx, lst in enumerate(bits):
             fingerprints[idx, list(lst)] = 1
