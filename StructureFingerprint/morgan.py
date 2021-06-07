@@ -42,7 +42,8 @@ else:
 
 
 class MorganFingerprint(TransformerMixin, BaseEstimator):
-    def __init__(self, min_radius: int = 1, max_radius: int = 4, length: int = 1024, number_active_bits: int = 2):
+    def __init__(self, min_radius: int = 1, max_radius: int = 4, length: int = 1024, number_active_bits: int = 2,
+                 include_hydrogens: bool = True):
         """
         Morgan fingerprints. Similar to RDkit implementation.
 
@@ -50,11 +51,13 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
         :param max_radius: maximum radius of EC
         :param length: bit string's length. Should be power of 2
         :param number_active_bits: number of active bits for each hashed tuple
+        :param include_hydrogens: take into account hydrogen atoms
         """
         self.min_radius = min_radius
         self.max_radius = max_radius
         self.length = length
         self.number_active_bits = number_active_bits
+        self.include_hydrogens = include_hydrogens
 
     def fit(self, x, y=None):
         return self
@@ -110,16 +113,13 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
     def _morgan(self, molecule: Union[MoleculeContainer, CGRContainer]) -> List[int]:
         min_radius = self.min_radius
 
-        if isinstance(molecule, MoleculeContainer):
-            identifiers = {idx: tuple_hash((atom.atomic_number, atom.isotope or 0, atom.charge, atom.is_radical,
-                                            atom.implicit_hydrogens))
-                           for idx, atom in molecule.atoms()}
-        elif isinstance(molecule, CGRContainer):
-            identifiers = {idx: tuple_hash((atom.atomic_number, atom.isotope or 0, atom.charge, atom.is_radical,
-                                            atom.p_charge, atom.p_is_radical))
-                           for idx, atom in molecule.atoms()}
-        else:
+        if not isinstance(molecule, (MoleculeContainer, CGRContainer)):
             raise TypeError('MoleculeContainer or CGRContainer expected')
+
+        if self.include_hydrogens and isinstance(molecule, MoleculeContainer):
+            identifiers = {idx: tuple_hash((atom, atom.implicit_hydrogens)) for idx, atom in molecule.atoms()}
+        else:
+            identifiers = {idx: int(atom) for idx, atom in molecule.atoms()}
 
         bonds = molecule._bonds
         arr = set()
