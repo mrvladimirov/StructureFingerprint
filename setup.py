@@ -21,7 +21,7 @@ from pathlib import Path
 from setuptools import setup, find_packages
 
 
-version = '1.26'
+version = '2.0'
 
 
 setup(

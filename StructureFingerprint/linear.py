@@ -44,7 +44,7 @@ else:
 
 class LinearFingerprint(TransformerMixin, BaseEstimator):
     def __init__(self, min_radius: int = 1, max_radius: int = 4, length: int = 1024,
-                 number_active_bits: int = 2, number_bit_pairs: int = 4):
+                 number_active_bits: int = 2, number_bit_pairs: int = 4, include_hydrogens: bool = True):
         """
         Linear fragments fingerprints.
         Transform molecule or CGR structures into fingerprints based on linear fragments descriptors.
@@ -61,12 +61,14 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
         :param number_bit_pairs: describe how much repeating fragments we can count in hashable
                fingerprint (if number of fragment in molecule greater or equal this number, we will be
                activate only this number of fragments
+        :param include_hydrogens: take into account hydrogen atoms
         """
         self.min_radius = min_radius
         self.max_radius = max_radius
         self.length = length
         self.number_active_bits = number_active_bits
         self.number_bit_pairs = number_bit_pairs
+        self.include_hydrogens = include_hydrogens
 
     def fit(self, x, y=None):
         return self
@@ -122,7 +124,7 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
         hashes = []
         for mol in x:
             hashes.append(list({tuple_hash((*tpl, cnt)) for tpl, count in self._fragments(mol).items()
-                                for cnt in range(min(count, number_bit_pairs))}))
+                                for cnt in range(min(len(count), number_bit_pairs))}))
         return hashes
 
     def _chains(self, molecule: Union[MoleculeContainer, CGRContainer]) -> Set[Tuple[int, ...]]:
@@ -154,13 +156,18 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
                         arr.add(frag if frag > rev else rev)
         return arr
 
-    def _fragments(self, molecule: Union[MoleculeContainer, CGRContainer]) -> Dict[Tuple[int, ...], int]:
+    def _fragments(self, molecule: Union[MoleculeContainer, CGRContainer]) -> Dict[Tuple[int, ...],
+                                                                                   List[Tuple[int, ...]]]:
         if not isinstance(molecule, (MoleculeContainer, CGRContainer)):
             raise TypeError('MoleculeContainer or CGRContainer expected')
 
-        atoms = {x: int(a) for x, a in molecule.atoms()}
+        if self.include_hydrogens and isinstance(molecule, MoleculeContainer):
+            atoms = {idx: tuple_hash((atom, atom.implicit_hydrogens)) for idx, atom in molecule.atoms()}
+        else:
+            atoms = {idx: int(atom) for idx, atom in molecule.atoms()}
+
         bonds = molecule._bonds
-        out = defaultdict(int)
+        out = defaultdict(list)
 
         for frag in self._chains(molecule):
             var = [atoms[frag[0]]]
@@ -170,9 +177,9 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
             var = tuple(var)
             rev_var = var[::-1]
             if var > rev_var:
-                out[var] += 1
+                out[var].append(frag)
             else:
-                out[rev_var] += 1
+                out[rev_var].append(frag)
         return dict(out)
 
 
