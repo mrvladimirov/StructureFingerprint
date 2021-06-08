@@ -44,7 +44,7 @@ else:
 
 class LinearFingerprint(TransformerMixin, BaseEstimator):
     def __init__(self, min_radius: int = 1, max_radius: int = 4, length: int = 1024,
-                 number_active_bits: int = 2, number_bit_pairs: int = 4, include_hydrogens: bool = True):
+                 number_active_bits: int = 2, number_bit_pairs: int = 4, include_hydrogens: bool = False):
         """
         Linear fragments fingerprints.
         Transform molecule or CGR structures into fingerprints based on linear fragments descriptors.
