@@ -4,7 +4,7 @@
 #  Copyright 2021 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of StructureFingerprint.
 #
-#  MorganFingerprint is free software; you can redistribute it and/or modify
+#  StructureFingerprint is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU Lesser General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
@@ -116,8 +116,9 @@ class MorganFingerprint(TransformerMixin, BaseEstimator):
         if not isinstance(molecule, (MoleculeContainer, CGRContainer)):
             raise TypeError('MoleculeContainer or CGRContainer expected')
 
-        if self.include_hydrogens and isinstance(molecule, MoleculeContainer):
-            identifiers = {idx: tuple_hash((atom, atom.implicit_hydrogens)) for idx, atom in molecule.atoms()}
+        if isinstance(molecule, MoleculeContainer) and not self.include_hydrogens:
+            identifiers = {idx: tuple_hash((atom.isotope or 0, atom.atomic_number, atom.charge, atom.is_radical))
+                           for idx, atom in molecule.atoms()}
         else:
             identifiers = {idx: int(atom) for idx, atom in molecule.atoms()}
 
