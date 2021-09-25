@@ -1,5 +1,6 @@
 Molecules and CGR's fingerprints
 --------------------------------
+This project now is the part of [chython](https://github.com/chython/chython).
 
 Library provides transformers of molecules and CGR's into features.
 
