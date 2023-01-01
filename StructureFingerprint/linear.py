@@ -17,7 +17,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from CGRtools import MoleculeContainer, CGRContainer
+from chython import MoleculeContainer, CGRContainer
 from collections import defaultdict, deque
 from importlib.util import find_spec
 from math import log2
@@ -26,11 +26,11 @@ from pkg_resources import get_distribution
 from typing import Collection, List, Dict, Tuple, Set, Deque, Union
 
 
-cgr_version = get_distribution('CGRtools').version
+cgr_version = get_distribution('chython').version
 if cgr_version.startswith('4.0.'):  # 4.0 compatibility
-    from CGRtools.algorithms.morgan import tuple_hash
+    from chython.algorithms.morgan import tuple_hash
 else:
-    from CGRtools._functions import tuple_hash
+    from chython._functions import tuple_hash
 
 if find_spec('sklearn'):  # use sklearn classes if available
     from sklearn.base import BaseEstimator, TransformerMixin
@@ -77,7 +77,7 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
         """
         Transform structures into array of binary features.
 
-        :param x: CGRtools MoleculeContainer or CGRContainer
+        :param x: chython MoleculeContainer or CGRContainer
         :return: array(n_samples, n_features)
         """
         bits = self.transform_bitset(x)
@@ -91,7 +91,7 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
         """
         Transform structures into list of indexes of True-valued features.
 
-        :param x: CGRtools MoleculeContainer or CGRContainer
+        :param x: chython MoleculeContainer or CGRContainer
         :return: list of list of indexes
         """
         number_active_bits = self.number_active_bits
@@ -117,7 +117,7 @@ class LinearFingerprint(TransformerMixin, BaseEstimator):
         """
         Transform structures into list of integer hashes of fragments with count information.
 
-        :param x: CGRtools MoleculeContainer or CGRContainer
+        :param x: chython MoleculeContainer or CGRContainer
         :return: list of list of integer hashes
         """
         number_bit_pairs = self.number_bit_pairs
