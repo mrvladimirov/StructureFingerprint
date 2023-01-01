@@ -21,7 +21,7 @@ from pathlib import Path
 from setuptools import setup, find_packages
 
 
-version = '2.1'
+version = '2.1.1'
 
 
 setup(
@@ -31,7 +31,7 @@ setup(
     url='https://github.com/dcloudf/MorganFingerprint',
     license='LGPLv3',
     python_requires='>=3.6.0',
-    install_requires=['CGRtools>=4.0.41', 'numpy>=1.18'],
+    install_requires=['numpy>=1.18'],
     long_description=(Path(__file__).parent / 'README.md').open().read(),
     classifiers=['Environment :: Plugins',
                  'Intended Audience :: Science/Research',
